@@ -17,13 +17,47 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     return payload;
   }
 }
+
 @Injectable()
 export class JwtAuthGuard extends AuthGuard('jwt') {}
+
 @Injectable()
 export class JwtSuperAdminAuthGuard extends AuthGuard('jwt') {
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest();
     if (request.user && request.user.role === 'SUPER_ADMIN') {
+      return true;
+    } else {
+      return false;
+    }
+  }
+}
+
+@Injectable()
+export class JwtAdminAuthGuard extends AuthGuard('jwt') {
+  canActivate(context: ExecutionContext): boolean {
+    const request = context.switchToHttp().getRequest();
+    if (
+      request.user &&
+      (request.user.role === 'ADMIN' || request.user.role === 'SUPER_ADMIN')
+    ) {
+      return true;
+    } else {
+      return false;
+    }
+  }
+}
+
+@Injectable()
+export class JwtTeacherAuthGuard extends AuthGuard('jwt') {
+  canActivate(context: ExecutionContext): boolean {
+    const request = context.switchToHttp().getRequest();
+    if (
+      request.user &&
+      (request.user.role === 'ADMIN' ||
+        request.user.role === 'SUPER_ADMIN' ||
+        request.user.role === 'TEACHER')
+    ) {
       return true;
     } else {
       return false;

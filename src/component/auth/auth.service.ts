@@ -49,7 +49,6 @@ export class AuthService {
       throw new BadRequestException(error?.message);
     }
   }
-
   async getAllAdmins(limit: number, offset: number) {
     try {
       const admins = await this._createUserModel
@@ -70,6 +69,110 @@ export class AuthService {
         throw new BadRequestException('Admin not found');
       }
       return { message: 'Admin deleted successfully' };
+    } catch (error) {
+      console.log('error', error?.message);
+      throw new BadRequestException(error?.message);
+    }
+  }
+
+  async createStudent(createUserDto: CreateUserDTO) {
+    try {
+      const existingUser = await this._createUserModel.findOne({
+        email: createUserDto.email.toLowerCase(),
+      });
+
+      if (existingUser) {
+        throw new BadRequestException('Email address is already registered');
+      }
+
+      createUserDto.email = createUserDto.email.toLowerCase();
+      const createUser = new this._createUserModel(createUserDto);
+
+      const hashedPassword = await bcrypt.hash(createUserDto.password, 10); // 10 is the salt rounds
+      createUser.password = hashedPassword;
+
+      await createUser.save();
+
+      const { password, ...userWithoutSensitiveData } = createUser.toObject();
+
+      return { user: userWithoutSensitiveData };
+    } catch (error) {
+      console.log('error', error?.message);
+      throw new BadRequestException(error?.message);
+    }
+  }
+  async getAllStudents(limit: number, offset: number) {
+    try {
+      const admins = await this._createUserModel
+        .find({ role: 'STUDENT' })
+        .select('-password')
+        .skip(offset)
+        .limit(limit);
+      return { admins };
+    } catch (error) {
+      console.log('error', error?.message);
+      throw new BadRequestException(error?.message);
+    }
+  }
+  async deleteStudent(id: string) {
+    try {
+      const result = await this._createUserModel.findByIdAndDelete(id);
+      if (!result) {
+        throw new BadRequestException('Student not found');
+      }
+      return { message: 'Student deleted successfully' };
+    } catch (error) {
+      console.log('error', error?.message);
+      throw new BadRequestException(error?.message);
+    }
+  }
+
+  async createTeacher(createUserDto: CreateUserDTO) {
+    try {
+      const existingUser = await this._createUserModel.findOne({
+        email: createUserDto.email.toLowerCase(),
+      });
+
+      if (existingUser) {
+        throw new BadRequestException('Email address is already registered');
+      }
+
+      createUserDto.email = createUserDto.email.toLowerCase();
+      const createUser = new this._createUserModel(createUserDto);
+
+      const hashedPassword = await bcrypt.hash(createUserDto.password, 10); // 10 is the salt rounds
+      createUser.password = hashedPassword;
+
+      await createUser.save();
+
+      const { password, ...userWithoutSensitiveData } = createUser.toObject();
+
+      return { user: userWithoutSensitiveData };
+    } catch (error) {
+      console.log('error', error?.message);
+      throw new BadRequestException(error?.message);
+    }
+  }
+  async getAllTeachers(limit: number, offset: number) {
+    try {
+      const admins = await this._createUserModel
+        .find({ role: 'TEACHER' })
+        .select('-password')
+        .skip(offset)
+        .limit(limit);
+      return { admins };
+    } catch (error) {
+      console.log('error', error?.message);
+      throw new BadRequestException(error?.message);
+    }
+  }
+  async deleteTeacher(id: string) {
+    try {
+      const result = await this._createUserModel.findByIdAndDelete(id);
+      if (!result) {
+        throw new BadRequestException('Teacher not found');
+      }
+      return { message: 'Teacher deleted successfully' };
     } catch (error) {
       console.log('error', error?.message);
       throw new BadRequestException(error?.message);

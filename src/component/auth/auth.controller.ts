@@ -15,7 +15,12 @@ import { AuthService } from './auth.service';
 import { Response } from 'express';
 import { CreateUserDTO } from './dto/createUser.dto';
 import { LoginDTO } from './dto/login.dto';
-import { JwtAuthGuard, JwtSuperAdminAuthGuard } from './jwt.strategy';
+import {
+  JwtAdminAuthGuard,
+  JwtAuthGuard,
+  JwtSuperAdminAuthGuard,
+  JwtTeacherAuthGuard,
+} from './jwt.strategy';
 import { User } from 'src/decorator/user.decorator';
 
 @ApiTags('Auth')
@@ -36,6 +41,32 @@ export class AuthController {
     return this.authService.createAdmin(createAdmin);
   }
 
+  @Post('createStudent')
+  @ApiBearerAuth()
+  @UseGuards(JwtAdminAuthGuard)
+  @UseGuards(JwtAuthGuard)
+  createStudent(
+    @Body() createStudent: CreateUserDTO,
+    @Res({ passthrough: true }) response: Response,
+    @Req() req: Request,
+  ) {
+    response.cookie('key', 'value');
+    return this.authService.createStudent(createStudent);
+  }
+
+  @Post('createTeacher')
+  @ApiBearerAuth()
+  @UseGuards(JwtAdminAuthGuard)
+  @UseGuards(JwtAuthGuard)
+  createTeacher(
+    @Body() createTeacher: CreateUserDTO,
+    @Res({ passthrough: true }) response: Response,
+    @Req() req: Request,
+  ) {
+    response.cookie('key', 'value');
+    return this.authService.createTeacher(createTeacher);
+  }
+
   @Get('getAllAdmins')
   @ApiBearerAuth()
   @UseGuards(JwtSuperAdminAuthGuard)
@@ -49,12 +80,54 @@ export class AuthController {
     return this.authService.getAllAdmins(limit, offset);
   }
 
+  @Get('getAllStudents')
+  @ApiBearerAuth()
+  @UseGuards(JwtAdminAuthGuard)
+  @UseGuards(JwtAuthGuard)
+  async getAllStudents(
+    @Query('limit') limit: number,
+    @Query('offset') offset: number,
+  ) {
+    limit = limit || 10; // default limit
+    offset = offset || 0; // default offset
+    return this.authService.getAllStudents(limit, offset);
+  }
+
+  @Get('getAllTeachers')
+  @ApiBearerAuth()
+  @UseGuards(JwtAdminAuthGuard)
+  @UseGuards(JwtAuthGuard)
+  async getAllTeachers(
+    @Query('limit') limit: number,
+    @Query('offset') offset: number,
+  ) {
+    limit = limit || 10; // default limit
+    offset = offset || 0; // default offset
+    return this.authService.getAllTeachers(limit, offset);
+  }
+
   @Post('deleteAdmin/:id')
   @ApiBearerAuth()
   @UseGuards(JwtSuperAdminAuthGuard)
   @UseGuards(JwtAuthGuard)
   async deleteAdmin(@Param('id') adminId: string) {
     return this.authService.deleteAdmin(adminId);
+  }
+
+  @Post('deleteStudent/:id')
+  @ApiBearerAuth()
+  @UseGuards(JwtAdminAuthGuard)
+  @UseGuards(JwtAuthGuard)
+  async deleteStudent(@Param('id') id: string) {
+    return this.authService.deleteStudent(id);
+  }
+
+  @Post('deleteTeacher/:id')
+  @ApiBearerAuth()
+  @UseGuards(JwtAdminAuthGuard)
+  @UseGuards(JwtAuthGuard)
+  async deleteTeacher(@Param('id') id: string) {
+    return this.authService.deleteTeacher(id);
   }
 
   @Post('login')
