@@ -84,6 +84,9 @@ export class AuthService {
       if (existingUser) {
         throw new BadRequestException('Email address is already registered');
       }
+      if (createUserDto.role !== 'STUDENT') {
+        throw new BadRequestException('Only the STUDENT role is allowed.');
+      }
 
       createUserDto.email = createUserDto.email.toLowerCase();
       const createUser = new this._createUserModel(createUserDto);

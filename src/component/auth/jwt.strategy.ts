@@ -47,20 +47,3 @@ export class JwtAdminAuthGuard extends AuthGuard('jwt') {
     }
   }
 }
-
-@Injectable()
-export class JwtTeacherAuthGuard extends AuthGuard('jwt') {
-  canActivate(context: ExecutionContext): boolean {
-    const request = context.switchToHttp().getRequest();
-    if (
-      request.user &&
-      (request.user.role === 'ADMIN' ||
-        request.user.role === 'SUPER_ADMIN' ||
-        request.user.role === 'TEACHER')
-    ) {
-      return true;
-    } else {
-      return false;
-    }
-  }
-}

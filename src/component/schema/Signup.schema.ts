@@ -1,14 +1,13 @@
 // users/user.schema.ts
 import { Schema, Prop, SchemaFactory } from '@nestjs/mongoose';
-import { HydratedDocument } from 'mongoose';
-import { generateStringId } from 'src/utils/utils';
+import { HydratedDocument, Types } from 'mongoose';
 
 export type CreateUserDocument = HydratedDocument<CreateUser>;
 
 @Schema()
 export class CreateUser {
-  @Prop({ type: String, default: generateStringId })
-  _id: string;
+  @Prop({ type: Types.ObjectId, default: () => new Types.ObjectId() })
+  _id: Types.ObjectId;
 
   @Prop({ required: true })
   email: string;
@@ -43,7 +42,7 @@ CreateUserSchema.set('toObject', {
   },
 });
 
-CreateUserSchema.index({ emadmin_email: 1 });
-CreateUserSchema.index({ isAdmin: 1 });
-CreateUserSchema.index({ admin_name: 1 });
+CreateUserSchema.index({ email: 1 });
+CreateUserSchema.index({ role: 1 });
+CreateUserSchema.index({ name: 1 });
 CreateUserSchema.index({ password: 1 });

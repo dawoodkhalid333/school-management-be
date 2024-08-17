@@ -19,7 +19,6 @@ import {
   JwtAdminAuthGuard,
   JwtAuthGuard,
   JwtSuperAdminAuthGuard,
-  JwtTeacherAuthGuard,
 } from './jwt.strategy';
 import { User } from 'src/decorator/user.decorator';
 
