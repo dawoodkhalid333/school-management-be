@@ -21,6 +21,7 @@ import {
   JwtSuperAdminAuthGuard,
 } from './jwt.strategy';
 import { User } from 'src/decorator/user.decorator';
+import { ChangePasswordDTO } from './dto/changePassword.dto';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -138,6 +139,16 @@ export class AuthController {
     const { token } = data;
     response.cookie('token', token, { httpOnly: true, secure: true });
     return this.authService.login(loginDto);
+  }
+
+  @Post('changePassword')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  async changePassword(
+    @User() user,
+    @Body() changePasswordDto: ChangePasswordDTO,
+  ) {
+    return this.authService.changePassword(user.id, changePasswordDto);
   }
 
   @ApiBearerAuth()
