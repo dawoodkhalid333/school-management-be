@@ -7,6 +7,7 @@ import { CreateUser } from '../schema/Signup.schema';
 import { CreateUserDTO } from './dto/createUser.dto';
 import { LoginDTO } from './dto/login.dto';
 import { CheckInOut, CheckInOutDocument } from '../schema/CheckInOut.schema';
+import { ChangePasswordDTO } from './dto/changePassword.dto';
 
 const message = 'this is signature message for soul';
 
@@ -224,6 +225,49 @@ export class AuthService {
         role: user.role,
         token,
       };
+    } catch (error) {
+      console.log('error', error?.message);
+      throw new BadRequestException(error?.message);
+    }
+  }
+
+  async changePassword(userId: string, changePasswordDto: ChangePasswordDTO) {
+    try {
+      const user = await this._createUserModel.findById(userId);
+
+      if (!user) {
+        throw new BadRequestException('User not found');
+      }
+
+      const isPasswordMatch = await bcrypt.compare(
+        changePasswordDto.oldPassword,
+        user.password,
+      );
+
+      if (!isPasswordMatch) {
+        throw new BadRequestException('Old password is incorrect');
+      }
+
+      const isSamePassword = await bcrypt.compare(
+        changePasswordDto.newPassword,
+        user.password,
+      );
+
+      if (isSamePassword) {
+        throw new BadRequestException(
+          'New password cannot be the same as the old password',
+        );
+      }
+
+      const hashedNewPassword = await bcrypt.hash(
+        changePasswordDto.newPassword,
+        10,
+      );
+      user.password = hashedNewPassword;
+
+      await user.save();
+
+      return { message: 'Password changed successfully' };
     } catch (error) {
       console.log('error', error?.message);
       throw new BadRequestException(error?.message);
