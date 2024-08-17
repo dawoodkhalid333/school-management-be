@@ -6,8 +6,11 @@ export type CreateUserDocument = HydratedDocument<CreateUser>;
 
 @Schema()
 export class CreateUser {
-  @Prop({ type: Types.ObjectId, default: () => new Types.ObjectId() })
-  _id: Types.ObjectId;
+  @Prop({
+    type: String,
+    default: () => new Types.ObjectId().toString(),
+  })
+  _id: string;
 
   @Prop({ required: true })
   email: string;
@@ -20,6 +23,9 @@ export class CreateUser {
 
   @Prop({ required: true })
   password: string;
+
+  @Prop({ required: false, default: false })
+  status: boolean;
 }
 
 export const CreateUserSchema = SchemaFactory.createForClass(CreateUser);

@@ -5,6 +5,7 @@ import { CreateUserSchema, CreateUser } from '../schema/Signup.schema';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './jwt.strategy';
+import { CheckInOut, CheckInOutSchema } from '../schema/CheckInOut.schema';
 
 @Module({})
 export class AuthModule {
@@ -13,6 +14,7 @@ export class AuthModule {
       imports: [
         MongooseModule.forFeature([
           { name: CreateUser.name, schema: CreateUserSchema },
+          { name: CheckInOut.name, schema: CheckInOutSchema },
         ]),
         JwtModule.register({
           secret: process.env.JWT_SECRET,

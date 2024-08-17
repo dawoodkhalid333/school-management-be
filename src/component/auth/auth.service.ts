@@ -6,6 +6,7 @@ import { Model } from 'mongoose';
 import { CreateUser } from '../schema/Signup.schema';
 import { CreateUserDTO } from './dto/createUser.dto';
 import { LoginDTO } from './dto/login.dto';
+import { CheckInOut, CheckInOutDocument } from '../schema/CheckInOut.schema';
 
 const message = 'this is signature message for soul';
 
@@ -14,6 +15,8 @@ export class AuthService {
   constructor(
     @InjectModel(CreateUser.name)
     private readonly _createUserModel: Model<CreateUser>,
+    @InjectModel(CheckInOut.name)
+    private readonly _checkInOutModel: Model<CheckInOutDocument>,
   ) {}
 
   private generateJwtToken(payload: any): string {
@@ -233,6 +236,82 @@ export class AuthService {
     } catch (error) {
       console.log('error', error?.message);
       throw new BadRequestException(error?.message);
+    }
+  }
+
+  async getCheckInTimes() {
+    try {
+      const getAll = await this._checkInOutModel.aggregate([
+        {
+          $lookup: {
+            from: 'createusers', // The collection name for users (replace 'users' with the actual collection name)
+            localField: 'userId', // The field in the checkInOut model
+            foreignField: '_id', // The field in the user collection
+            as: 'userDetails', // The name of the new field to add
+          },
+        },
+        {
+          $unwind: '$userDetails', // Deconstruct the userDetails array to get a single object
+        },
+        {
+          $project: {
+            _id: 0, // Exclude the _id from the output
+            userId: 1, // Include userId
+            time: 1, // Include time
+            'userDetails.name': 1, // Include specific fields from userDetails
+            'userDetails.email': 1, // Include specific fields from userDetails
+            'userDetails.status': 1, // Include specific fields from userDetails
+            'userDetails.role': 1, // Include specific fields from userDetails
+          },
+        },
+      ]);
+
+      return getAll; // Return the processed data
+    } catch (error) {
+      console.error('Error during getCheckInTimes:', error);
+      throw new Error('Could not get data');
+    }
+  }
+
+  async checkIn(user) {
+    try {
+      const checkIn = new this._checkInOutModel({
+        userId: user.id,
+        time: new Date(), // current time for check-in
+      });
+      console.log(user);
+      const userDetail = await this._createUserModel.findById(user?.id);
+      console.log(userDetail, 'dssssssssssssssssss');
+      userDetail.status = true;
+      await userDetail.save();
+      await checkIn.save();
+      // Save the new check-in record
+
+      return { success: true, message: 'Check-in successful', checkIn };
+    } catch (error) {
+      console.error('Error during check-in:', error);
+      throw new Error('Could not complete check-in');
+    }
+  }
+
+  async checkOut(user) {
+    try {
+      const checkOut = new this._checkInOutModel({
+        userId: user.id,
+        time: new Date(), // current time for check-in
+      });
+
+      const userDetail = await this._createUserModel.findById(user?.id);
+      console.log(userDetail, 'dssssssssssssssssss');
+      userDetail.status = false;
+      await userDetail.save();
+      await checkOut.save();
+      // Save the new check-in record
+
+      return { success: true, message: 'Check-in successful', checkOut };
+    } catch (error) {
+      console.error('Error during check-in:', error);
+      throw new Error('Could not complete check-out');
     }
   }
 }

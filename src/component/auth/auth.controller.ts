@@ -141,10 +141,32 @@ export class AuthController {
   }
 
   @ApiBearerAuth()
+  @UseGuards(JwtAdminAuthGuard)
+  @UseGuards(JwtAuthGuard)
+  @Get('getCheckInTimes')
+  getCheckInTimes() {
+    return this.authService.getCheckInTimes();
+  }
+
+  @ApiBearerAuth()
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @Get('getLogedInUser')
   getLoggedUser(@User() user) {
     return this.authService.getLogedInUser(user);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Post('checkIn')
+  checkIn(@User() user) {
+    return this.authService.checkIn(user);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Post('checkOut')
+  checkOut(@User() user) {
+    return this.authService.checkOut(user);
   }
 }

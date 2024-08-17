@@ -16,5 +16,6 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('swagger', app, document);
   await app.listen(5000);
+  console.log('server listening on port 5000');
 }
 bootstrap();
