@@ -276,7 +276,26 @@ export class AuthService {
 
   async getLogedInUser(user) {
     try {
-      return { user };
+      // Fetch all check-in/check-out records
+      const checkInTimes = await this.getCheckInTimes();
+
+      // Find the most recent record for the user
+      const userRecords = checkInTimes.filter(
+        (record) => record.userId === user.id,
+      );
+
+      // Sort user records by time (convert to Date objects for comparison)
+      const latestRecord = userRecords.sort(
+        (a, b) => new Date(b.time).getTime() - new Date(a.time).getTime(),
+      )[0];
+
+      // Determine the status based on the latest record
+      const status = latestRecord ? latestRecord.userDetails.status : null;
+
+      return {
+        ...user,
+        status,
+      };
     } catch (error) {
       console.log('error', error?.message);
       throw new BadRequestException(error?.message);
