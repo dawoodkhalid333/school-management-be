@@ -8,6 +8,7 @@ import { CreateUserDTO } from './dto/createUser.dto';
 import { LoginDTO } from './dto/login.dto';
 import { CheckInOut, CheckInOutDocument } from '../schema/CheckInOut.schema';
 import { ChangePasswordDTO } from './dto/changePassword.dto';
+import { Cron } from '@nestjs/schedule';
 
 const message = 'this is signature message for soul';
 
@@ -19,6 +20,42 @@ export class AuthService {
     @InjectModel(CheckInOut.name)
     private readonly _checkInOutModel: Model<CheckInOutDocument>,
   ) {}
+
+  @Cron('0 18 * * *') // This cron expression runs every day at 6 PM
+  async handleAutoCheckOut() {
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Start of the day
+
+      const usersToCheckOut = await this._createUserModel.find({
+        status: true, // Users who are checked in
+      });
+
+      for (const user of usersToCheckOut) {
+        // Check if the user has checked in today and hasn't checked out
+        const existingCheckIn = await this._checkInOutModel.findOne({
+          userId: user.id,
+          time: { $gte: today },
+        });
+
+        if (existingCheckIn) {
+          // Perform check-out
+          const checkOut = new this._checkInOutModel({
+            userId: user.id,
+            time: new Date(), // current time for auto check-out
+          });
+
+          user.status = false;
+          await user.save();
+          await checkOut.save();
+
+          console.log(`Auto check-out completed for user: ${user.id}`);
+        }
+      }
+    } catch (error) {
+      console.log('Error during auto check-out:', error);
+    }
+  }
 
   private generateJwtToken(payload: any): string {
     const token = `Bearer ${jwt.sign(payload, process.env.JWT_SECRET, {
@@ -276,60 +313,97 @@ export class AuthService {
 
   async getLogedInUser(user) {
     try {
-      // Fetch all check-in/check-out records
-      const checkInTimes = await this.getCheckInTimes();
+      const userData = await this._createUserModel.findById(user?.id);
 
-      // Find the most recent record for the user
-      const userRecords = checkInTimes.filter(
-        (record) => record.userId === user.id,
-      );
-
-      // Sort user records by time (convert to Date objects for comparison)
-      const latestRecord = userRecords.sort(
-        (a, b) => new Date(b.time).getTime() - new Date(a.time).getTime(),
-      )[0];
-
-      // Determine the status based on the latest record
-      const status = latestRecord ? latestRecord.userDetails.status : null;
-
-      return {
-        ...user,
-        status,
-      };
+      return userData;
     } catch (error) {
       console.log('error', error?.message);
       throw new BadRequestException(error?.message);
     }
   }
 
-  async getCheckInTimes() {
+  async getCheckInTimes(userId, startDate, endDate) {
     try {
-      const getAll = await this._checkInOutModel.aggregate([
+      // Prepare the date range filter
+      const dateFilter: any = {};
+      if (startDate) {
+        dateFilter.$gte = new Date(startDate);
+      }
+      if (endDate) {
+        dateFilter.$lte = new Date(endDate);
+      }
+
+      const matchConditions: any = {};
+      if (userId) {
+        matchConditions.userId = userId; // Filter by user ID if provided
+      }
+      if (startDate || endDate) {
+        matchConditions.parsedTime = dateFilter; // Filter by date range if provided
+      }
+
+      const attendanceData = await this._checkInOutModel.aggregate([
+        {
+          $addFields: {
+            parsedTime: {
+              $dateFromString: {
+                dateString: {
+                  $substr: [
+                    '$time',
+                    0,
+                    24, // Adjust this based on your format
+                  ],
+                },
+                timezone: 'Asia/Karachi',
+              },
+            },
+          },
+        },
+        { $match: matchConditions }, // Match documents based on filters
+        {
+          $group: {
+            _id: {
+              userId: '$userId',
+              date: {
+                $dateToString: { format: '%Y-%m-%d', date: '$parsedTime' },
+              }, // Group by user and date
+            },
+            checkIn: { $first: '$parsedTime' }, // Get the first check-in time
+            checkOut: { $last: '$parsedTime' }, // Get the last check-out time
+          },
+        },
         {
           $lookup: {
-            from: 'createusers', // The collection name for users (replace 'users' with the actual collection name)
-            localField: 'userId', // The field in the checkInOut model
-            foreignField: '_id', // The field in the user collection
-            as: 'userDetails', // The name of the new field to add
+            from: 'createusers', // Replace with your actual users collection name
+            localField: '_id.userId', // The userId in the checkInOut model
+            foreignField: '_id', // The _id in the user collection
+            as: 'userDetails',
           },
         },
-        {
-          $unwind: '$userDetails', // Deconstruct the userDetails array to get a single object
-        },
+        { $unwind: '$userDetails' }, // Flatten the userDetails array
         {
           $project: {
-            _id: 0, // Exclude the _id from the output
-            userId: 1, // Include userId
-            time: 1, // Include time
-            'userDetails.name': 1, // Include specific fields from userDetails
-            'userDetails.email': 1, // Include specific fields from userDetails
-            'userDetails.status': 1, // Include specific fields from userDetails
-            'userDetails.role': 1, // Include specific fields from userDetails
+            _id: 0,
+            date: '$_id.date', // Show date
+
+            checkIn: 1, // Show check-in time
+            checkOut: {
+              $cond: {
+                if: { $eq: ['$checkIn', '$checkOut'] },
+                then: null, // No check-out if check-in and check-out times are the same
+                else: '$checkOut',
+              },
+            },
+            'userDetails.name': 1, // Include user's name
+            'userDetails.email': 1, // Include user's email
+            'userDetails.status': 1, // Include user's status
+            'userDetails.role': 1, // Include user's role
+            'userDetails.id': '$userDetails._id', // Rename user's _id to id
           },
         },
+        { $sort: { date: -1 } }, // Sort by date in descending order
       ]);
 
-      return getAll; // Return the processed data
+      return attendanceData;
     } catch (error) {
       console.error('Error during getCheckInTimes:', error);
       throw new Error('Could not get data');
@@ -338,17 +412,31 @@ export class AuthService {
 
   async checkIn(user) {
     try {
+      // Check if the user has already checked in today
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Start of the day
+      const existingCheckIn = await this._checkInOutModel.findOne({
+        userId: user.id,
+        time: { $gte: today }, // Check for any check-in today
+      });
+
+      if (existingCheckIn) {
+        return {
+          success: false,
+          message: 'User has already checked in today.',
+        };
+      }
+
+      // Proceed with check-in
       const checkIn = new this._checkInOutModel({
         userId: user.id,
         time: new Date(), // current time for check-in
       });
-      console.log(user);
-      const userDetail = await this._createUserModel.findById(user?.id);
-      console.log(userDetail, 'dssssssssssssssssss');
+
+      const userDetail = await this._createUserModel.findById(user.id);
       userDetail.status = true;
       await userDetail.save();
       await checkIn.save();
-      // Save the new check-in record
 
       return { success: true, message: 'Check-in successful', checkIn };
     } catch (error) {
@@ -359,21 +447,33 @@ export class AuthService {
 
   async checkOut(user) {
     try {
-      const checkOut = new this._checkInOutModel({
+      // Check if the user has checked in today and hasn't checked out yet
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Start of the day
+      const existingCheckIn = await this._checkInOutModel.findOne({
         userId: user.id,
-        time: new Date(), // current time for check-in
+        time: { $gte: today },
+        type: 'check-in', // Assuming you can differentiate between check-in and check-out
       });
 
-      const userDetail = await this._createUserModel.findById(user?.id);
-      console.log(userDetail, 'dssssssssssssssssss');
+      if (!existingCheckIn) {
+        return { success: false, message: 'User has not checked in today.' };
+      }
+
+      // Proceed with check-out
+      const checkOut = new this._checkInOutModel({
+        userId: user.id,
+        time: new Date(), // current time for check-out
+      });
+
+      const userDetail = await this._createUserModel.findById(user.id);
       userDetail.status = false;
       await userDetail.save();
       await checkOut.save();
-      // Save the new check-in record
 
-      return { success: true, message: 'Check-in successful', checkOut };
+      return { success: true, message: 'Check-out successful', checkOut };
     } catch (error) {
-      console.error('Error during check-in:', error);
+      console.error('Error during check-out:', error);
       throw new Error('Could not complete check-out');
     }
   }

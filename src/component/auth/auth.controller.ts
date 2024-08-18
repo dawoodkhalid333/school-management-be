@@ -10,7 +10,7 @@ import {
   Param,
   Delete,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { Response } from 'express';
 import { CreateUserDTO } from './dto/createUser.dto';
@@ -154,9 +154,16 @@ export class AuthController {
   @ApiBearerAuth()
   @UseGuards(JwtAdminAuthGuard)
   @UseGuards(JwtAuthGuard)
+  @ApiQuery({ name: 'userId', required: false, type: String, example: '' })
+  @ApiQuery({ name: 'startDate', required: false, type: String, example: '' })
+  @ApiQuery({ name: 'endDate', required: false, type: String, example: '' })
   @Get('getCheckInTimes')
-  getCheckInTimes() {
-    return this.authService.getCheckInTimes();
+  getCheckInTimes(
+    @Query('userId') userId: string,
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string,
+  ) {
+    return this.authService.getCheckInTimes(userId, startDate, endDate);
   }
 
   @ApiBearerAuth()
