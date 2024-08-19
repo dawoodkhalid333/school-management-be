@@ -344,21 +344,25 @@ export class AuthService {
       const attendanceData = await this._checkInOutModel.aggregate([
         {
           $addFields: {
+            // Clean up the time string to remove the unwanted timezone parts
+            cleanTime: {
+              $substr: ['$time', 0, 24], // Extracts "Sun Aug 18 2024 11:11:53"
+            },
+          },
+        },
+        {
+          $addFields: {
+            // Convert cleanTime to UTC
             parsedTime: {
               $dateFromString: {
-                dateString: {
-                  $substr: [
-                    '$time',
-                    0,
-                    24, // Adjust this based on your format
-                  ],
-                },
-                timezone: 'Asia/Karachi',
+                dateString: '$cleanTime',
+                timezone: 'UTC', // Force the timezone to UTC
               },
             },
           },
         },
         { $match: matchConditions }, // Match documents based on filters
+        { $sort: { parsedTime: 1 } }, // Sort by parsedTime within each date
         {
           $group: {
             _id: {
@@ -384,7 +388,6 @@ export class AuthService {
           $project: {
             _id: 0,
             date: '$_id.date', // Show date
-
             checkIn: 1, // Show check-in time
             checkOut: {
               $cond: {
@@ -453,7 +456,6 @@ export class AuthService {
       const existingCheckIn = await this._checkInOutModel.findOne({
         userId: user.id,
         time: { $gte: today },
-        type: 'check-in', // Assuming you can differentiate between check-in and check-out
       });
 
       if (!existingCheckIn) {

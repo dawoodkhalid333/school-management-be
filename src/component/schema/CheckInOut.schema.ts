@@ -17,6 +17,9 @@ export class CheckInOut {
 
   @Prop()
   time: string;
+
+  @Prop()
+  timezone: string;
 }
 
 export const CheckInOutSchema = SchemaFactory.createForClass(CheckInOut);
