@@ -1,4 +1,8 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import * as bcrypt from 'bcrypt';
 import * as jwt from 'jsonwebtoken';
@@ -9,6 +13,8 @@ import { LoginDTO } from './dto/login.dto';
 import { CheckInOut, CheckInOutDocument } from '../schema/CheckInOut.schema';
 import { ChangePasswordDTO } from './dto/changePassword.dto';
 import { Cron } from '@nestjs/schedule';
+import { DocumentValidationDTO } from './dto/documentValidation.dto';
+import { RegistrationFeeDTO } from './dto/collectRegistrationFee.dto';
 
 const message = 'this is signature message for soul';
 
@@ -145,6 +151,20 @@ export class AuthService {
       throw new BadRequestException(error?.message);
     }
   }
+
+  async approveStudent(studentId: string) {
+    const student = await this._createUserModel.findById(studentId);
+
+    if (!student) {
+      throw new NotFoundException('Student not found');
+    }
+
+    student.isApproved = true;
+    await student.save();
+
+    return { message: 'Student registration approved' };
+  }
+
   async getAllStudents(limit: number, offset: number) {
     try {
       const admins = await this._createUserModel
@@ -153,6 +173,71 @@ export class AuthService {
         .skip(offset)
         .limit(limit);
       return { admins };
+    } catch (error) {
+      console.log('error', error?.message);
+      throw new BadRequestException(error?.message);
+    }
+  }
+
+  async validateDocuments(
+    studentId: string,
+    documentValidation: DocumentValidationDTO,
+  ) {
+    try {
+      // Find the student by ID
+      const student = await this._createUserModel.findById(studentId);
+
+      if (!student) {
+        throw new NotFoundException('Student not found');
+      }
+
+      // Update the document validation status
+      student.birthCertificateValid = documentValidation.birthCertificateValid;
+      student.schoolRecordsValid = documentValidation.schoolRecordsValid;
+      student.photoValid = documentValidation.photoValid;
+
+      // Save the updated student document
+      await student.save();
+
+      return { message: 'Documents validated successfully' };
+    } catch (error) {
+      console.log('error', error?.message);
+      throw new BadRequestException(error?.message);
+    }
+  }
+
+  async collectRegistrationFee(studentId: string, feeDto: RegistrationFeeDTO) {
+    try {
+      // Find the student by ID
+      const student = await this._createUserModel.findById(studentId);
+
+      if (!student) {
+        throw new NotFoundException('Student not found');
+      }
+
+      // Update the registration fee details
+      student.feeAmount = feeDto.feeAmount;
+      student.feeStatus = feeDto.feeStatus;
+      student.feePaymentDate = feeDto.feeStatus ? feeDto.feePaymentDate : null;
+
+      // Save the updated student document
+      await student.save();
+
+      return { message: 'Registration fee recorded successfully' };
+    } catch (error) {
+      console.log('error', error?.message);
+      throw new BadRequestException(error?.message);
+    }
+  }
+
+  async getNotApprovedStudents(limit: number, offset: number) {
+    try {
+      const students = await this._createUserModel
+        .find({ role: 'STUDENT', isApproved: false })
+        .select('-password')
+        .skip(offset)
+        .limit(limit);
+      return { students };
     } catch (error) {
       console.log('error', error?.message);
       throw new BadRequestException(error?.message);
@@ -245,7 +330,7 @@ export class AuthService {
 
       const payload = {
         id: user._id,
-        name: user.name,
+        name: user.fullName,
         email: user.email,
         // isAdmin: user.isAdmin,
         // isSuperAdmin: user.isSuperAdmin,
@@ -255,7 +340,7 @@ export class AuthService {
       const token = this.generateJwtToken(payload);
       return {
         id: user._id,
-        name: user.name,
+        name: user.fullName,
         email: user.email,
         // isAdmin: user.isAdmin,
         // isSuperAdmin: user.isSuperAdmin,

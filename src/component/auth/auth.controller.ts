@@ -22,6 +22,8 @@ import {
 } from './jwt.strategy';
 import { User } from 'src/decorator/user.decorator';
 import { ChangePasswordDTO } from './dto/changePassword.dto';
+import { DocumentValidationDTO } from './dto/documentValidation.dto';
+import { RegistrationFeeDTO } from './dto/collectRegistrationFee.dto';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -54,6 +56,36 @@ export class AuthController {
     return this.authService.createStudent(createStudent);
   }
 
+  @Post('approveStudent')
+  @ApiBearerAuth()
+  @UseGuards(JwtAdminAuthGuard)
+  @UseGuards(JwtAuthGuard)
+  approveStudent(@Param('studentId') studentId: string) {
+    return this.authService.approveStudent(studentId);
+  }
+
+  @Post('validateDocuments')
+  @ApiBearerAuth()
+  @UseGuards(JwtAdminAuthGuard)
+  @UseGuards(JwtAuthGuard)
+  validateDocuments(
+    @Param('studentId') studentId: string,
+    @Body() documentValidationDto: DocumentValidationDTO,
+  ) {
+    return this.authService.validateDocuments(studentId, documentValidationDto);
+  }
+
+  @Post('collectRegistrationFee')
+  @ApiBearerAuth()
+  @UseGuards(JwtAdminAuthGuard)
+  @UseGuards(JwtAuthGuard)
+  collectRegistrationFee(
+    @Param('studentId') studentId: string,
+    @Body() feeDto: RegistrationFeeDTO,
+  ) {
+    return this.authService.collectRegistrationFee(studentId, feeDto);
+  }
+
   @Post('createTeacher')
   @ApiBearerAuth()
   @UseGuards(JwtAdminAuthGuard)
@@ -78,6 +110,19 @@ export class AuthController {
     limit = limit || 10; // default limit
     offset = offset || 0; // default offset
     return this.authService.getAllAdmins(limit, offset);
+  }
+
+  @Get('getNotApprovedStudents')
+  @ApiBearerAuth()
+  @UseGuards(JwtAdminAuthGuard)
+  @UseGuards(JwtAuthGuard)
+  async getNotApprovedStudents(
+    @Query('limit') limit: number,
+    @Query('offset') offset: number,
+  ) {
+    limit = limit || 10; // default limit
+    offset = offset || 0; // default offset
+    return this.authService.getNotApprovedStudents(limit, offset);
   }
 
   @Get('getAllStudents')
